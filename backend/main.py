@@ -12,15 +12,24 @@ from app.routers import (
     bills,
     navigation,
     assistance,
-    payment_plans
+    payment_plans,
+    auth,
+    user_data
 )
 from app.core.config import settings
+from app.core.database import init_db
 
 app = FastAPI(
     title="MedFin - Healthcare Financial Navigator",
     description="Autonomous healthcare financial navigation system",
     version="1.0.0"
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup."""
+    await init_db()
 
 # CORS middleware
 app.add_middleware(
@@ -32,6 +41,8 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(user_data.router, prefix="/api/v1/user", tags=["User Data"])
 app.include_router(cost_estimation.router, prefix="/api/v1/cost", tags=["Cost Estimation"])
 app.include_router(insurance.router, prefix="/api/v1/insurance", tags=["Insurance"])
 app.include_router(bills.router, prefix="/api/v1/bills", tags=["Bills"])
@@ -61,6 +72,3 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
-
-
-
