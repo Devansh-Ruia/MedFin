@@ -36,9 +36,13 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     """Get database URL from settings."""
-    url = settings.database_url  # type: ignore
+    # Use synchronous SQLite for migrations
+    url = settings.database_url
     if url is None:
         raise ValueError("Database URL is not configured")
+    # Convert async URL to sync for migrations
+    if url.startswith("sqlite+aiosqlite"):
+        return url.replace("sqlite+aiosqlite", "sqlite")
     return url
 
 
