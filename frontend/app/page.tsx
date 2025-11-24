@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
-import { Activity, ArrowRight, Shield, TrendingUp, Calculator, FileText } from 'lucide-react'
+import { Activity, ArrowRight, Shield, TrendingUp, Calculator, FileText, Heart } from 'lucide-react'
 
 export default function Home() {
   const { isAuthenticated, loading } = useAuth()
