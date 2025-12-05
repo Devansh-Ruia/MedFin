@@ -1,0 +1,92 @@
+flowchart TB
+    subgraph Ingestion["📥 Data Ingestion Layer"]
+        direction TB
+        UI[User Input Forms]
+        DOC[Document Parser]
+        API_IN[External APIs]
+        OCR[OCR/PDF Extract]
+        
+        UI --> VAL[Input Validator]
+        DOC --> VAL
+        API_IN --> VAL
+        OCR --> VAL
+        
+        VAL --> NORM[Data Normalizer]
+        NORM --> ENRICH[Data Enricher]
+    end
+
+    subgraph Core["🔬 Analysis Engine Core"]
+        direction TB
+        
+        subgraph Income["Income Analyzer"]
+            INC_CALC[Income Calculator]
+            FPL_CALC[FPL Calculator]
+            AFFORD[Affordability Projector]
+            HARDSHIP[Hardship Detector]
+        end
+        
+        subgraph Debt["Debt Analyzer"]
+            DEBT_AGG[Debt Aggregator]
+            DTI_CALC[DTI Calculator]
+            TREND[Trend Analyzer]
+            QUAL[Qualification Assessor]
+        end
+        
+        subgraph Insurance["Insurance Analyzer"]
+            PLAN_PARSE[Plan Parser]
+            PROG_TRACK[Progress Tracker]
+            GAP_DETECT[Gap Detector]
+            COV_MATCH[Coverage Matcher]
+        end
+        
+        subgraph Bills["Bill Analyzer"]
+            CHARGE_PARSE[Charge Parser]
+            DUP_DETECT[Duplicate Detector]
+            CODE_VAL[Code Validator]
+            BUNDLE_CHECK[Bundle Checker]
+            NEGO_SCORE[Negotiation Scorer]
+        end
+    end
+
+    subgraph Synthesis["🧠 Synthesis Layer"]
+        RISK_ENGINE[Risk Scoring Engine]
+        OPP_ENGINE[Opportunity Engine]
+        STRAT_ENGINE[Strategy Engine]
+        UNIFIER[Analysis Unifier]
+    end
+
+    subgraph Output["📤 Output Layer"]
+        JSON_OUT[JSON Serializer]
+        CACHE[Result Cache]
+        EVENTS[Event Publisher]
+    end
+
+    subgraph Downstream["⬇️ Downstream Consumers"]
+        NAV[Navigation Planner]
+        COST[Cost Estimator]
+        ASSIST[Assistance Matcher]
+        PAY[Payment Optimizer]
+    end
+
+    ENRICH --> Income
+    ENRICH --> Debt
+    ENRICH --> Insurance
+    ENRICH --> Bills
+
+    Income --> RISK_ENGINE
+    Debt --> RISK_ENGINE
+    Insurance --> RISK_ENGINE
+    Bills --> OPP_ENGINE
+    
+    RISK_ENGINE --> UNIFIER
+    OPP_ENGINE --> UNIFIER
+    STRAT_ENGINE --> UNIFIER
+
+    UNIFIER --> JSON_OUT
+    JSON_OUT --> CACHE
+    JSON_OUT --> EVENTS
+
+    CACHE --> NAV
+    CACHE --> COST
+    CACHE --> ASSIST
+    CACHE --> PAY
