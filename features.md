@@ -4,7 +4,7 @@
 
 * Automated financial navigation plans (Devansh)
 * Income, debt, insurance & bill analysis (Devansh)
-* Smart recommendations with risk scoring
+* Smart recommendations with risk scoring (Devansh)
 * Savings projection engine
 * Continuous re-evaluation as data changes
 
