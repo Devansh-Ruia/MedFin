@@ -10,8 +10,8 @@ from datetime import date, timedelta
 from typing import Optional
 import logging
 
-# Assume models from data_models.py are imported
-# from .data_models import *
+from fn_data_models import *
+from analysis_utilities import BillAnalysisUtilities, RiskAnalysisUtilities, InsuranceAnalysisUtilities
 
 logger = logging.getLogger(__name__)
 
@@ -125,51 +125,12 @@ class BillAnalyzer(BaseAnalyzer):
     
     def _detect_duplicates(self, bill: 'MedicalBill') -> dict:
         """Find duplicate line items within a bill"""
-        duplicates = []
-        amount = Decimal("0")
-        seen = {}
-        
-        for item in bill.line_items:
-            key = (item.cpt_code, item.service_date, item.billed_amount)
-            if key in seen:
-                duplicates.append({
-                    "type": BillErrorType.DUPLICATE_CHARGE,
-                    "original_item_id": str(seen[key]),
-                    "duplicate_item_id": str(item.id),
-                    "amount": item.billed_amount,
-                    "description": item.description,
-                    "confidence": 0.95
-                })
-                amount += item.billed_amount
-            else:
-                seen[key] = item.id
-        
+        duplicates, amount = BillAnalysisUtilities.detect_duplicates(bill)
         return {"duplicates": duplicates, "amount": amount}
     
     def _detect_unbundling(self, bill: 'MedicalBill') -> dict:
         """Detect potential unbundling fraud"""
-        errors = []
-        amount = Decimal("0")
-        codes_present = {li.cpt_code for li in bill.line_items if li.cpt_code}
-        
-        for parent_code, child_codes in self.BUNDLED_CODES.items():
-            if parent_code in codes_present:
-                for child in child_codes:
-                    if child in codes_present:
-                        child_item = next(
-                            (li for li in bill.line_items if li.cpt_code == child),
-                            None
-                        )
-                        if child_item:
-                            errors.append({
-                                "type": BillErrorType.UNBUNDLING,
-                                "parent_code": parent_code,
-                                "child_code": child,
-                                "amount": child_item.billed_amount,
-                                "confidence": 0.85
-                            })
-                            amount += child_item.billed_amount
-        
+        errors, amount = BillAnalysisUtilities.detect_unbundling(bill)
         return {"errors": errors, "amount": amount}
     
     def _check_allowed_amounts(self, bill: 'MedicalBill', 
@@ -229,37 +190,11 @@ class BillAnalyzer(BaseAnalyzer):
     def _estimate_negotiation_potential(self, bill: 'MedicalBill',
                                          insurance: Optional['InsurancePlan']) -> Decimal:
         """Estimate how much the bill could be reduced through negotiation"""
-        if not insurance or insurance.insurance_type == InsuranceType.NONE:
-            # Uninsured patients can often negotiate 40-60% off
-            return bill.patient_balance * Decimal("0.50")
-        
-        # Insured patients have less room, typically 10-25%
-        if bill.is_in_network:
-            return bill.patient_balance * Decimal("0.15")
-        else:
-            return bill.patient_balance * Decimal("0.30")
+        return BillAnalysisUtilities.estimate_negotiation_potential(bill, insurance)
     
     def _calculate_urgency(self, bill: 'MedicalBill') -> int:
         """Calculate urgency score 0-100"""
-        score = 50  # Base score
-        
-        if bill.days_until_due:
-            if bill.days_until_due < 0:
-                score += 30  # Past due
-            elif bill.days_until_due < 14:
-                score += 20
-            elif bill.days_until_due < 30:
-                score += 10
-        
-        if bill.status == BillStatus.COLLECTIONS:
-            score += 25
-        
-        if bill.patient_balance > Decimal("5000"):
-            score += 10
-        elif bill.patient_balance > Decimal("10000"):
-            score += 15
-        
-        return min(100, score)
+        return BillAnalysisUtilities.calculate_urgency_score(bill)
     
     def _generate_actions(self, bill, errors, duplicates, 
                           overcharge, negotiation_pot) -> list[str]:
@@ -505,8 +440,8 @@ class EligibilityAnalyzer(BaseAnalyzer):
                           total_owed: Decimal) -> Optional[EligibilityMatch]:
         """Evaluate eligibility for a single program"""
         criteria = program.eligibility
-        score = 1.0
-        missing = []
+        score: float = 1.0
+        missing: list[str] = []
         
         # Check FPL percentage
         if criteria.max_fpl_percentage:

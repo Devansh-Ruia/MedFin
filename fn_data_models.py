@@ -6,8 +6,8 @@ Comprehensive Pydantic models for healthcare financial data
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
-from pydantic import BaseModel, Field, validator
+from typing import Optional, Any, Callable
+from pydantic import BaseModel, Field, validator, computed_field
 from uuid import UUID, uuid4
 
 
@@ -373,3 +373,247 @@ class NavigationPlan(BaseModel):
     confidence_score: float
     data_completeness_score: float
     last_updated: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ============================================================================
+# RISK ASSESSMENT AND RECOMMENDATION MODELS
+# ============================================================================
+
+class RiskCategory(str, Enum):
+    """Overall risk classification"""
+    CRITICAL = "critical"      # Score 80-100: Immediate intervention required
+    HIGH = "high"              # Score 60-79: Urgent attention needed
+    MODERATE = "moderate"      # Score 40-59: Active management required
+    LOW = "low"                # Score 20-39: Monitor and maintain
+    MINIMAL = "minimal"        # Score 0-19: Healthy financial state
+
+class RiskDimension(str, Enum):
+    """Individual risk assessment dimensions"""
+    INCOME_STABILITY = "income_stability"
+    DEBT_BURDEN = "debt_burden"
+    MEDICAL_DEBT_RATIO = "medical_debt_ratio"
+    UPCOMING_COSTS = "upcoming_costs"
+    INSURANCE_GAPS = "insurance_gaps"
+    BILL_ERRORS = "bill_errors"
+    PAYMENT_HISTORY = "payment_history"
+    COLLECTIONS_EXPOSURE = "collections_exposure"
+    COVERAGE_ADEQUACY = "coverage_adequacy"
+    AFFORDABILITY = "affordability"
+
+class ActionCategory(str, Enum):
+    """Categories of recommended actions"""
+    BILL_DISPUTE = "bill_dispute"
+    INSURANCE_APPEAL = "insurance_appeal"
+    ASSISTANCE_APPLICATION = "assistance_application"
+    NEGOTIATION = "negotiation"
+    PAYMENT_OPTIMIZATION = "payment_optimization"
+    INSURANCE_OPTIMIZATION = "insurance_optimization"
+    DEBT_MANAGEMENT = "debt_management"
+    COST_AVOIDANCE = "cost_avoidance"
+    DOCUMENT_REQUEST = "document_request"
+    VERIFICATION = "verification"
+
+class ActionPriority(str, Enum):
+    """Priority levels for recommended actions"""
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+class DifficultyLevel(str, Enum):
+    """Difficulty of completing an action"""
+    EASY = "easy"
+    MODERATE = "moderate"
+    CHALLENGING = "challenging"
+    COMPLEX = "complex"
+
+class SuccessLikelihood(str, Enum):
+    """Likelihood of successful outcome"""
+    VERY_HIGH = "very_high"
+    HIGH = "high"
+    MODERATE = "moderate"
+    LOW = "low"
+    VERY_LOW = "very_low"
+
+class AlertSeverity(str, Enum):
+    """Severity level for alerts"""
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    INFO = "info"
+
+class RiskFactor(BaseModel):
+    """Individual risk factor with scoring"""
+    factor: str
+    description: str
+    impact_score: float = Field(ge=0, le=1)  # 0-1 impact on overall risk
+    category: RiskDimension
+    is_reversible: bool = False
+    timeframe_to_resolution: Optional[str] = None
+
+class RiskDimensionScore(BaseModel):
+    """Score for a specific risk dimension"""
+    dimension: RiskDimension
+    score: int = Field(ge=0, le=100)
+    level: RiskCategory
+    primary_factors: list[RiskFactor]
+    trend: str = "stable"  # improving, worsening, stable
+    confidence: float = Field(ge=0, le=1)
+
+class Alert(BaseModel):
+    """Alert for immediate attention"""
+    alert_id: UUID = Field(default_factory=uuid4)
+    severity: AlertSeverity
+    title: str
+    description: str
+    recommendation: str
+    deadline: Optional[date] = None
+    financial_impact: Optional[Decimal] = None
+    action_required: bool = True
+
+class EnhancedRiskAssessment(BaseModel):
+    """Complete risk assessment output"""
+    assessment_id: UUID = Field(default_factory=uuid4)
+    assessed_at: datetime = Field(default_factory=datetime.utcnow)
+    overall_score: int = Field(ge=0, le=100)
+    category: RiskCategory
+    category_description: str
+    dimension_scores: dict[RiskDimension, RiskDimensionScore] = Field(default_factory=dict)
+    top_risk_factors: list[RiskFactor] = Field(default_factory=list)
+    critical_factors: list[RiskFactor] = Field(default_factory=list)
+    alerts: list[Alert] = Field(default_factory=list)
+    critical_alert_count: int = 0
+    data_completeness: float = Field(ge=0, le=1)
+    confidence_score: float = Field(ge=0, le=1)
+    data_quality_warnings: list[str] = Field(default_factory=list)
+    summary: str = ""
+    key_insights: list[str] = Field(default_factory=list)
+
+class EnhancedSavingsEstimate(BaseModel):
+    """Estimated financial impact"""
+    minimum: Decimal = Decimal("0")
+    expected: Decimal = Decimal("0")
+    maximum: Decimal = Decimal("0")
+    confidence: float = Field(ge=0, le=1, default=0.5)
+    calculation_method: str = "estimated"
+    assumptions: list[str] = Field(default_factory=list)
+
+class TimeEstimate(BaseModel):
+    """Time required to complete action"""
+    minimum_minutes: int = 0
+    expected_minutes: int = 0
+    maximum_minutes: int = 0
+    
+    @property
+    def formatted_time(self) -> str:
+        mins = self.expected_minutes
+        if mins < 60: return f"{mins} minutes"
+        hours = mins // 60
+        remaining = mins % 60
+        if remaining == 0: return f"{hours} hour{'s' if hours > 1 else ''}"
+        return f"{hours}h {remaining}m"
+
+class DocumentRequirement(BaseModel):
+    """Document needed for an action"""
+    document_type: str
+    description: str
+    required_by: Optional[date] = None
+    where_to_obtain: Optional[str] = None
+    alternative_options: list[str] = Field(default_factory=list)
+
+class Recommendation(BaseModel):
+    """Specific recommendation for patient action"""
+    recommendation_id: UUID = Field(default_factory=uuid4)
+    category: ActionCategory
+    priority: ActionPriority
+    difficulty: DifficultyLevel
+    success_likelihood: SuccessLikelihood
+    
+    title: str
+    description: str
+    rationale: str
+    
+    # Financial impact
+    savings_estimate: EnhancedSavingsEstimate
+    time_estimate: TimeEstimate
+    
+    # Requirements
+    required_documents: list[DocumentRequirement] = Field(default_factory=list)
+    prerequisites: list[str] = Field(default_factory=list)
+    
+    # Execution details
+    steps: list[str]
+    contacts: list[str] = Field(default_factory=list)
+    templates: list[str] = Field(default_factory=list)
+    
+    # Context
+    applicable_bills: list[UUID] = Field(default_factory=list)
+    target_providers: list[str] = Field(default_factory=list)
+    relevant_programs: list[UUID] = Field(default_factory=list)
+    
+    # Warnings and considerations
+    warnings: list[str] = Field(default_factory=list)
+    alternatives: list[str] = Field(default_factory=list)
+    success_factors: list[str] = Field(default_factory=list)
+
+class RankingFactors(BaseModel):
+    """Factors used to rank recommendations"""
+    financial_impact_score: float = Field(ge=0, le=1)
+    urgency_score: float = Field(ge=0, le=1)
+    success_probability_score: float = Field(ge=0, le=1)
+    effort_score: float = Field(ge=0, le=1)  # Lower is better
+    risk_reduction_score: float = Field(ge=0, le=1)
+    overall_score: float = Field(ge=0, le=1)
+
+class RankedRecommendation(BaseModel):
+    """Recommendation with ranking information"""
+    recommendation: Recommendation
+    rank: int
+    ranking_factors: RankingFactors
+    rationale: str
+
+class RecommendationContext(BaseModel):
+    """Context for generating recommendations"""
+    patient_profile: PatientFinancialProfile
+    bills: list[MedicalBill] = Field(default_factory=list)
+    insurance_plans: list[InsurancePlan] = Field(default_factory=list)
+    risk_assessment: Optional[EnhancedRiskAssessment] = None
+    existing_recommendations: list[Recommendation] = Field(default_factory=list)
+    user_preferences: dict[str, Any] = Field(default_factory=dict)
+    time_constraints: Optional[TimeEstimate] = None
+    financial_constraints: Optional[EnhancedSavingsEstimate] = None
+
+class ActionPlan(BaseModel):
+    """Organized action plan from ranked recommendations"""
+    plan_id: UUID = Field(default_factory=uuid4)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    patient_id: str
+    
+    # Recommendations
+    ranked_recommendations: list[RankedRecommendation]
+    total_recommendations: int
+    critical_recommendations: int
+    
+    # Timeline
+    estimated_completion_time: TimeEstimate
+    key_deadlines: list[tuple[date, str]]
+    
+    # Expected outcomes
+    total_potential_savings: EnhancedSavingsEstimate
+    risk_reduction_projection: str
+    
+    # Organization
+    phases: dict[str, list[RankedRecommendation]] = Field(default_factory=dict)
+    dependencies: dict[str, list[str]] = Field(default_factory=dict)
+
+class EngineOutput(BaseModel):
+    """Output from analysis engine"""
+    context: RecommendationContext
+    risk_assessment: Optional[EnhancedRiskAssessment]
+    recommendations: list[Recommendation]
+    ranked_recommendations: list[RankedRecommendation]
+    action_plan: ActionPlan
+    processing_time_ms: int
+    confidence_score: float
+    warnings: list[str] = Field(default_factory=list)

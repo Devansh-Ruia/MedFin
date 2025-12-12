@@ -5,18 +5,47 @@ Generates personalized, actionable recommendations
 
 from decimal import Decimal
 from datetime import date, datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 import logging
+
+from fn_data_models import *
+from recommendation_utilities import RecommendationGenerator as SharedRecommendationGenerator, RecommendationContext
 
 logger = logging.getLogger(__name__)
 
 
 class RecommendationGenerator:
     """
-    Generates personalized recommendations based on risk assessment
-    and financial context.
+    Enhanced recommendation generator using shared utilities
     """
     
+    def __init__(self):
+        self.shared_generator = SharedRecommendationGenerator()
+    
+    def generate_all_recommendations(self, context: RecommendationContext) -> List[Recommendation]:
+        """Generate all types of recommendations using shared utilities"""
+        all_recommendations = []
+        
+        # Use shared utilities for different recommendation types
+        all_recommendations.extend(self.shared_generator.generate_billing_recommendations(context))
+        all_recommendations.extend(self.shared_generator.generate_insurance_recommendations(context))
+        all_recommendations.extend(self.shared_generator.generate_assistance_recommendations(context))
+        all_recommendations.extend(self.shared_generator.generate_negotiation_recommendations(context))
+        all_recommendations.extend(self.shared_generator.generate_payment_plan_recommendations(context))
+        
+        # Add any template-based recommendations for additional coverage
+        template_recommendations = self._generate_template_recommendations(context)
+        all_recommendations.extend(template_recommendations)
+        
+        # Prioritize and rank recommendations
+        return RecommendationUtilities.prioritize_actions(all_recommendations)
+    
+    def _generate_template_recommendations(self, context: RecommendationContext) -> List[Recommendation]:
+        """Generate recommendations from templates for additional coverage"""
+        # This method can use the existing ACTION_TEMPLATES for any specific cases
+        # not covered by the shared utilities
+        return []
+
     # Action templates with all required metadata
     ACTION_TEMPLATES = {
         # =====================================================================
