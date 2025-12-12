@@ -1,0 +1,5 @@
+{
+  "name": "MedFin",
+  "description": "Autonomous healthcare financial navigator using Gemini to analyze medical bills and provide cost-saving action plans.",
+  "requestFramePermissions": []
+}
